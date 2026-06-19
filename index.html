@@ -1,0 +1,267 @@
+<style>
+body {
+    margin: 0;
+}
+
+#game {
+    border: 1px solid black;
+    max-width: 100%;
+    touch-action: none;
+}
+
+#controls{
+    margin-top:10px;
+    display:flex;
+    justify-content:center;
+    gap:15px;
+}
+
+#controls button{
+    width:100px;
+    height:100px;
+    font-size:40px;
+    font-weight:bold;
+    border-radius:20px;
+    touch-action:none;
+}
+</style>
+
+<canvas id="game" width="900" height="500"></canvas>
+
+<div id="controls">
+    <button id="leftBtn">◀</button>
+    <button id="jumpBtn">▲</button>
+    <button id="rightBtn">▶</button>
+</div>
+
+<script>
+
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
+const playerImg = new Image();
+playerImg.src =
+"https://8000-m-s-kkb-usc1b1-1u4yqip7mpo4c-b.us-central1-1.prod.colab.dev/Walter-White-PNG-Picture.webp";
+
+const goalImg = new Image();
+goalImg.src =
+"https://8000-m-s-kkb-usc1b1-1u4yqip7mpo4c-b.us-central1-1.prod.colab.dev/crystal-meth-rock-candy_thumb.jpg";
+
+let player = {
+    x:100,
+    y:300,
+    w:60,
+    h:80,
+    vx:0,
+    vy:0,
+    grounded:false
+};
+
+const gravity = 0.8;
+const speed = 5;
+const jump = -15;
+
+const worldWidth = 4000;
+
+const platforms = [
+    {x:0,y:450,w:4000,h:50},
+    {x:300,y:350,w:150,h:20},
+    {x:600,y:280,w:150,h:20},
+    {x:900,y:220,w:150,h:20},
+    {x:1300,y:320,w:200,h:20},
+    {x:1800,y:250,w:200,h:20},
+    {x:2300,y:180,w:200,h:20},
+    {x:2800,y:280,w:200,h:20}
+];
+
+const goal = {
+    x:3500,
+    y:370,
+    w:80,
+    h:80
+};
+
+let cameraX = 0;
+let won = false;
+
+const keys = {};
+
+document.addEventListener("keydown", e=>{
+    keys[e.key.toLowerCase()] = true;
+});
+
+document.addEventListener("keyup", e=>{
+    keys[e.key.toLowerCase()] = false;
+});
+
+function setupButton(button,key){
+
+    button.addEventListener("touchstart", e=>{
+        e.preventDefault();
+        keys[key] = true;
+    });
+
+    button.addEventListener("touchend", e=>{
+        e.preventDefault();
+        keys[key] = false;
+    });
+
+    button.addEventListener("mousedown", ()=>{
+        keys[key] = true;
+    });
+
+    button.addEventListener("mouseup", ()=>{
+        keys[key] = false;
+    });
+
+    button.addEventListener("mouseleave", ()=>{
+        keys[key] = false;
+    });
+}
+
+setupButton(document.getElementById("leftBtn"),"a");
+setupButton(document.getElementById("rightBtn"),"d");
+setupButton(document.getElementById("jumpBtn"),"w");
+
+function collide(a,b){
+    return (
+        a.x < b.x + b.w &&
+        a.x + a.w > b.x &&
+        a.y < b.y + b.h &&
+        a.y + a.h > b.y
+    );
+}
+
+function update(){
+
+    if(won) return;
+
+    player.vx = 0;
+
+    if(keys["a"])
+        player.vx = -speed;
+
+    if(keys["d"])
+        player.vx = speed;
+
+    if(keys["w"] && player.grounded){
+        player.vy = jump;
+        player.grounded = false;
+    }
+
+    player.x += player.vx;
+
+    player.vy += gravity;
+    player.y += player.vy;
+
+    player.grounded = false;
+
+    for(let p of platforms){
+
+        if(collide(player,p)){
+
+            if(player.vy > 0){
+                player.y = p.y - player.h;
+                player.vy = 0;
+                player.grounded = true;
+            }
+        }
+    }
+
+    if(collide(player,goal)){
+        won = true;
+    }
+
+    cameraX = player.x - 250;
+
+    if(cameraX < 0)
+        cameraX = 0;
+
+    if(cameraX > worldWidth - canvas.width)
+        cameraX = worldWidth - canvas.width;
+}
+
+function draw(){
+
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+
+    ctx.fillStyle = "#87CEEB";
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+
+    ctx.fillStyle = "green";
+
+    for(let p of platforms){
+        ctx.fillRect(
+            p.x-cameraX,
+            p.y,
+            p.w,
+            p.h
+        );
+    }
+
+    if(goalImg.complete && goalImg.naturalWidth > 0){
+        ctx.drawImage(
+            goalImg,
+            goal.x-cameraX,
+            goal.y,
+            goal.w,
+            goal.h
+        );
+    } else {
+        ctx.fillStyle = "red";
+        ctx.fillRect(
+            goal.x-cameraX,
+            goal.y,
+            goal.w,
+            goal.h
+        );
+    }
+
+    if(playerImg.complete && playerImg.naturalWidth > 0){
+        ctx.drawImage(
+            playerImg,
+            player.x-cameraX,
+            player.y,
+            player.w,
+            player.h
+        );
+    } else {
+        ctx.fillStyle = "blue";
+        ctx.fillRect(
+            player.x-cameraX,
+            player.y,
+            player.w,
+            player.h
+        );
+    }
+
+    ctx.fillStyle = "black";
+    ctx.font = "22px Arial";
+    ctx.fillText(
+        "WASD or Touch Controls",
+        10,
+        30
+    );
+
+    if(won){
+
+        ctx.fillStyle = "black";
+        ctx.font = "50px Arial";
+
+        ctx.fillText(
+            "JESSE, WE WON!",
+            220,
+            200
+        );
+    }
+}
+
+function gameLoop(){
+    update();
+    draw();
+    requestAnimationFrame(gameLoop);
+}
+
+gameLoop();
+
+</script>
